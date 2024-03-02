@@ -1,11 +1,11 @@
 from hierarchy_builder.models.device_model import DeviceModel
-from hierarchy_builder.repositories import SeriesRepository
-from django.core.cache import cache
+from hierarchy_builder.repositories.series_repository import SeriesRepository
+from django_redis import get_redis_connection
 import json
-
 
 class DeviceModelRepository:
     PREFIX = 'series|'
+    redis_con = get_redis_connection("default")
 
     @staticmethod
     def _redis_series_key(brand_name):
@@ -39,8 +39,8 @@ class DeviceModelRepository:
     def create(name, series_name, brand_name):
         """
         Creates a new device model with the given name, associated with a series by its name.
-        This method assumes the model does not exist in Redis and has been checked before this call.
-        It adds the new model to both the database and Redis cache.
+        Assumes the model does not exist in Redis and has been checked before this call.
+        Adds the new model to both the database and Redis cache.
 
         Parameters:
             name (str): The name of the device model.
@@ -50,19 +50,16 @@ class DeviceModelRepository:
         Returns:
             DeviceModel: The newly created device model instance, or None if the series does not exist.
         """
-        # Use the SeriesRepository to get the series by name and brand name
         series = SeriesRepository.get_by_name(series_name, brand_name)
         if not series:
             raise ValueError(f"Series with name '{series_name}' for brand '{brand_name}' does not exist.")
 
-        # Create the new device model in the database
         device_model = DeviceModel.objects.create(name=name, series=series)
 
-        # Add the new model name to the Redis list for the series
         redis_key = DeviceModelRepository._redis_series_key(series.brand.name)
-        models_list = json.loads(cache.hget(redis_key, series.name) or '[]')
+        models_list = json.loads(DeviceModelRepository.redis_con.hget(redis_key, series.name) or '[]')
         models_list.append(name)
-        cache.hset(redis_key, series.name, json.dumps(models_list))
+        DeviceModelRepository.redis_con.hset(redis_key, series.name, json.dumps(models_list))
 
         return device_model
 
@@ -87,10 +84,10 @@ class DeviceModelRepository:
 
         if device_model:
             redis_key = DeviceModelRepository._redis_series_key(brand_name)
-            models_list = json.loads(cache.hget(redis_key, series_name) or '[]')
+            models_list = json.loads(DeviceModelRepository.redis_con.hget(redis_key, series_name) or '[]')
             if model_name in models_list:
                 models_list.remove(model_name)
-                cache.hset(redis_key, series_name, json.dumps(models_list))
+                DeviceModelRepository.redis_con.hset(redis_key, series_name, json.dumps(models_list))
 
             device_model.delete()
             return True

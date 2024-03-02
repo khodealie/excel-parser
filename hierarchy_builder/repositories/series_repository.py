@@ -1,11 +1,11 @@
 from hierarchy_builder.models.series import Series
 from hierarchy_builder.repositories.brand_repository import BrandRepository
-from django.core.cache import cache
+from django_redis import get_redis_connection
 import json
-
 
 class SeriesRepository:
     PREFIX = 'series|'
+    redis_con = get_redis_connection("default")
 
     @staticmethod
     def _redis_series_key(brand_name):
@@ -24,7 +24,7 @@ class SeriesRepository:
             dict: A dictionary with series names as keys and lists of model names as values.
         """
         hash_key = SeriesRepository._redis_series_key(brand_name)
-        series_data = cache.hgetall(hash_key)
+        series_data = SeriesRepository.redis_con.hgetall(hash_key)
 
         # Deserialize model data from JSON
         return {series.decode('utf-8'): json.loads(models) for series, models in series_data.items()}
@@ -93,7 +93,7 @@ class SeriesRepository:
 
         # Add the new series to the Redis cache with an initial empty list of models
         hash_key = SeriesRepository._redis_series_key(brand.name)
-        cache.hset(hash_key, series.name, json.dumps([]))
+        SeriesRepository.redis_con.hset(hash_key, series.name, json.dumps([]))
 
         return series
 
@@ -112,7 +112,7 @@ class SeriesRepository:
         series = Series.objects.filter(name=series_name, brand__name=brand_name).first()
         if series:
             hash_key = SeriesRepository._redis_series_key(series.brand.name)
-            cache.hdel(hash_key, series_name)
+            SeriesRepository.redis_con.hdel(hash_key, series_name)
             series.delete()
             return True
         return False

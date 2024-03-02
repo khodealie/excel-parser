@@ -1,9 +1,9 @@
 from hierarchy_builder.models.device_category import DeviceCategory
-from django.core.cache import cache
-
+from django_redis import get_redis_connection
 
 class DeviceCategoryRepository:
     REDIS_HASH_KEY = 'device_category'
+    redis_con = get_redis_connection("default")
 
     @staticmethod
     def get_all_from_redis():
@@ -13,10 +13,7 @@ class DeviceCategoryRepository:
         Returns:
             dict: A dictionary where keys are category names and values are their corresponding IDs.
         """
-        # Fetch the entire hash map from Redis
-        category_dict = cache.hgetall(DeviceCategoryRepository.REDIS_HASH_KEY)
-
-        # Convert byte strings to strings and return
+        category_dict = DeviceCategoryRepository.redis_con.hgetall(DeviceCategoryRepository.REDIS_HASH_KEY)
         return {key.decode('utf-8'): int(value) for key, value in category_dict.items()}
 
     @staticmethod
@@ -70,8 +67,7 @@ class DeviceCategoryRepository:
         """
         # Attempt to create a new device category in the database
         category, created = DeviceCategory.objects.get_or_create(name=name)
-        cache.hset(DeviceCategoryRepository.REDIS_HASH_KEY, name, category.id)
-
+        DeviceCategoryRepository.redis_con.hset(DeviceCategoryRepository.REDIS_HASH_KEY, name, category.id)
         return category
 
     @staticmethod
@@ -88,6 +84,6 @@ class DeviceCategoryRepository:
         category = DeviceCategory.objects.filter(name=name).first()
         if category:
             category.delete()
-            cache.hdel(DeviceCategoryRepository.REDIS_HASH_KEY, name)
+            DeviceCategoryRepository.redis_con.hdel(DeviceCategoryRepository.REDIS_HASH_KEY, name)
             return True
         return False

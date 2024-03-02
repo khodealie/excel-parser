@@ -16,8 +16,7 @@ class ExcelService:
         for sheet_name in xls.sheet_names:
             try:
                 if '-Series' in sheet_name:
-                    device_type = sheet_name.replace('-Series', '')
-                    self._process_series_and_models(xls, sheet_name, device_type)
+                    self._process_series_and_models(xls, sheet_name)
                 elif sheet_name == 'Devices':
                     self._process_device_categories(xls, sheet_name)
                 else:
@@ -32,10 +31,10 @@ class ExcelService:
         existing_categories_names_in_redis = list(DeviceCategoryRepository.get_all_from_redis().keys())
 
         df = pd.read_excel(xls, sheet_name=sheet_name)
-        categories_in_sheet = df['DeviceName'].unique().tolist()
+        categories_in_sheet = df['DeviceName'].dropna().str.lower().unique().tolist()
+        categories_in_sheet = [cat for cat in categories_in_sheet if cat != 'nan']
 
         categories_to_add = [cat for cat in categories_in_sheet if cat not in existing_categories_names_in_redis]
-
         categories_to_delete = [cat for cat in existing_categories_names_in_redis if cat not in categories_in_sheet]
 
         for category_name in categories_to_add:
@@ -45,50 +44,62 @@ class ExcelService:
             DeviceCategoryRepository.delete(name=category_name)
 
     def _process_brands(self, xls, sheet_name):
-        existing_brand_names_in_redis = list(BrandRepository.get_brands_by_category_from_redis(sheet_name).keys())
-
         df = pd.read_excel(xls, sheet_name=sheet_name)
-        brands_in_sheet = df[f'{sheet_name}Name'].unique().tolist()
 
-        brands_to_add = [brand for brand in brands_in_sheet if brand not in existing_brand_names_in_redis]
+        if not df.empty and len(df.columns) > 0:
+            category_type_header = str(df.columns[0])
+            category_type = category_type_header.replace('Name', '').lower()
 
-        brands_to_delete = [brand for brand in existing_brand_names_in_redis if brand not in brands_in_sheet]
+            brands_in_sheet = df.iloc[:, 0].dropna().str.lower().unique().tolist()
+            brands_in_sheet = [brand for brand in brands_in_sheet if brand != 'nan']
 
-        for brand_name in brands_to_add:
-            BrandRepository.create(name=brand_name, category_name=sheet_name)
+            existing_brand_names_in_redis = list(
+                BrandRepository.get_brands_by_category_from_redis(category_type).keys())
 
-        for brand_name in brands_to_delete:
-            BrandRepository.delete(name=brand_name, category_name=sheet_name)
+            brands_to_add = [brand for brand in brands_in_sheet if brand not in existing_brand_names_in_redis]
+            brands_to_delete = [brand for brand in existing_brand_names_in_redis if brand not in brands_in_sheet]
 
-    def _process_series_and_models(self, xls, sheet_name, device_type):
+            for brand_name in brands_to_add:
+                BrandRepository.create(name=brand_name, category_name=category_type)
+
+            for brand_name in brands_to_delete:
+                BrandRepository.delete(name=brand_name, category_name=category_type)
+
+    def _process_series_and_models(self, xls, sheet_name):
         df = pd.read_excel(xls, sheet_name=sheet_name)
-        column_name_key = f'{device_type}Name'
 
-        if column_name_key not in df.columns:
-            return f"Column {column_name_key} not found in sheet {sheet_name}"
+        if not df.empty and len(df.columns) > 1:
+            category_type_header = str(df.columns[0])
+            category_type = category_type_header.replace('Name', '').lower()
 
-        for _, row in df.iterrows():
-            brand_name = row[column_name_key]
-            existing_series_and_models = SeriesRepository.get_series_and_models_by_brand(brand_name)
+            for _, row in df.iterrows():
+                brand_name = row.iloc[0].lower() if pd.notnull(row.iloc[0]) else None
+                if brand_name in [None, 'nan']:
+                    continue
 
-            series_and_models_in_sheet = {}
-            current_series_name = None
-            for item in row[1:]:  # Skip brand name column
-                if pd.isnull(item):
-                    continue  # Skip null values
+                existing_series_and_models = SeriesRepository.get_series_and_models_by_brand(brand_name)
 
-                if isinstance(item, str) and item.startswith('S'):
-                    current_series_name = item
-                    series_and_models_in_sheet[current_series_name] = []
-                elif current_series_name:
-                    model_name = str(item)
-                    series_and_models_in_sheet[current_series_name].append(model_name)
+                series_and_models_in_sheet = {}
+                current_series_name = None
+                for item in row.iloc[1:].dropna():
+                    item = str(item).lower()
+                    if item == 'nan':
+                        continue
+                    if 's' in item:
+                        current_series_name = item
+                        series_and_models_in_sheet[current_series_name] = []
+                    elif current_series_name:
+                        model_name = item
+                        series_and_models_in_sheet[current_series_name].append(model_name)
 
-            for series_name, models_in_sheet in series_and_models_in_sheet.items():
-                if series_name not in existing_series_and_models:
-                    SeriesRepository.create(name=series_name, brand_name=brand_name)
-                    existing_series_and_models[series_name] = []
+                for series_name, models_in_sheet in series_and_models_in_sheet.items():
+                    if series_name != 'nan':
+                        if series_name not in existing_series_and_models:
+                            SeriesRepository.create(name=series_name, brand_name=brand_name)
+                            existing_series_and_models[series_name] = []
 
-                for model_name in models_in_sheet:
-                    if model_name not in existing_series_and_models[series_name]:
-                        DeviceModelRepository.create(name=model_name, series_name=series_name, brand_name=brand_name)
+                    for model_name in models_in_sheet:
+                        if model_name != 'nan':
+                            if model_name not in existing_series_and_models.get(series_name, []):
+                                DeviceModelRepository.create(name=model_name, series_name=series_name,
+                                                             brand_name=brand_name)

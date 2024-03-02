@@ -1,10 +1,10 @@
 from hierarchy_builder.models.brand import Brand
 from hierarchy_builder.repositories.device_category_repository import DeviceCategoryRepository
-from django.core.cache import cache
-
+from django_redis import get_redis_connection
 
 class BrandRepository:
     PREFIX = 'brand|'
+    redis_con = get_redis_connection("default")
 
     @staticmethod
     def _redis_hash_key(category_name):
@@ -25,7 +25,7 @@ class BrandRepository:
             dict: A dictionary where keys are brand names and values are their corresponding IDs, for the specified category.
         """
         hash_key = BrandRepository._redis_hash_key(category_name)
-        brand_dict = cache.hgetall(hash_key)
+        brand_dict = BrandRepository.redis_con.hgetall(hash_key)
 
         # Convert byte strings to strings (Redis stores data as bytes)
         return {key.decode('utf-8'): int(value) for key, value in brand_dict.items()}
@@ -79,9 +79,8 @@ class BrandRepository:
         # Directly create the new brand in the database
         brand = Brand.objects.create(name=name, category=category)
 
-        # Add the new brand to the Redis cache
         hash_key = BrandRepository._redis_hash_key(category_name)
-        cache.hset(hash_key, name, brand.id)
+        BrandRepository.redis_con.hset(hash_key, name, brand.id)
 
         return brand
 
@@ -100,7 +99,7 @@ class BrandRepository:
         brand = Brand.objects.filter(name=name, category__name=category_name).first()
         if brand:
             hash_key = BrandRepository._redis_hash_key(brand.category.name)
-            cache.hdel(hash_key, name)
+            BrandRepository.redis_con.hdel(hash_key, name)
             brand.delete()
             return True
         return False
