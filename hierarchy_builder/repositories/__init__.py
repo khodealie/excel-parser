@@ -1,0 +1,4 @@
+from .device_category_repository import DeviceCategoryRepository
+from .brand_repository import BrandRepository
+from .series_repository import SeriesRepository
+from .device_model_repository import DeviceModelRepository
