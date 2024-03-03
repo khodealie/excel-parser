@@ -19,5 +19,4 @@ tests/
 **/migrations
 **/static
 **/media
-**/req.txt
 docker-compose.yml
