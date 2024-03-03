@@ -3,7 +3,7 @@ from django.urls import path, re_path
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
-from hierarchy_builder.views import ExcelUploadView, index
+from hierarchy_builder.views import ExcelUploadView, HierarchyView, index  # Make sure to import HierarchyView
 
 # Swagger schema view setup
 schema_view = get_schema_view(
@@ -25,6 +25,9 @@ urlpatterns = [
 
     # Your custom file upload URL
     path('upload/', ExcelUploadView.as_view(), name='excel-upload'),
+
+    # URL for HierarchyView
+    path('hierarchy/', HierarchyView.as_view(), name='device-hierarchy'),  # Add this line
 
     # Swagger Documentation URLs
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),

@@ -1,24 +1,64 @@
 version: '3.8'
 
 services:
-  mysql:
+  db:
     image: mysql:8.3.0
-    container_name: mysql8_container
+    container_name: excel_parser_database
     environment:
       MYSQL_ROOT_PASSWORD: '${DB_ROOT_PASSWORD}'
       MYSQL_DATABASE: '${DB_NAME}'
       MYSQL_USER: '${DB_USER}'
       MYSQL_PASSWORD: '${DB_PASSWORD}'
-    ports:
-      - "${DB_PORT}:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
+    networks:
+      - excel_parser_network
 
   redis:
     image: redis:latest
-    container_name: redis_container
+    container_name: excel_parser_redis
+    networks:
+      - excel_parser_network
+
+  web:
+    build: .
+    container_name: excel_parser_django
+    command: gunicorn excel_parser.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - .:/code
+    depends_on:
+      - db
+      - redis
+    networks:
+      - excel_parser_network
+    environment:
+      DB_ENGINE: '${DB_ENGINE}'
+      DB_NAME: '${DB_NAME}'
+      DB_USER: '${DB_USER}'
+      DB_PASSWORD: '${DB_PASSWORD}'
+      DB_HOST: '${DB_HOST}'
+      DB_PORT: '${DB_PORT}'
+      REDIS_HOST: '${REDIS_HOST}'
+      REDIS_PORT: '${REDIS_PORT}'
+
+  nginx:
+    image: nginx:1.19
+    container_name: excel_parser_nginx
+    volumes:
+      - ./config/nginx:/etc/nginx/conf.d
+      - static_volume:/code/static
+      - media_volume:/code/media
     ports:
-      - "${REDIS_PORT}:6379"
+      - "80:80"
+    depends_on:
+      - web
+    networks:
+      - excel_parser_network
+      - default
+
+networks:
+  excel_parser_network:
 
 volumes:
   mysql_data:
+  redis_data:
+  static_volume:
+  media_volume:
