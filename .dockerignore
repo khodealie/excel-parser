@@ -14,3 +14,10 @@ docker-compose*.yml
 *.md
 requirements/
 tests/
+**/.env
+**/db.sqlite3
+**/migrations
+**/static
+**/media
+**/req.txt
+docker-compose.yml
