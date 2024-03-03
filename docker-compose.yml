@@ -32,9 +32,9 @@ services:
         python manage.py migrate
         gunicorn excel_parser.wsgi:application --bind 0.0.0.0:8000
       "
-
     volumes:
       - .:/code
+      - static_volume:/app/static
     depends_on:
       - db
       - redis
@@ -49,9 +49,19 @@ services:
       DB_PORT: '${DB_PORT}'
       REDIS_HOST: '${REDIS_HOST}'
       REDIS_PORT: '${REDIS_PORT}'
-    ports:
-      - "8000:8000"
 
+  nginx:
+    image: nginx:1.19
+    container_name: excel_parser_nginx
+    volumes:
+      - ./config/nginx:/etc/nginx/conf.d:ro
+      - static_volume:/app/static
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+    networks:
+      - excel_parser_network
 
 networks:
   excel_parser_network:
@@ -59,3 +69,4 @@ networks:
 volumes:
   mysql_data:
   redis_data:
+  static_volume:
