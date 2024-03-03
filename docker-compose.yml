@@ -21,7 +21,7 @@ services:
   web:
     build: .
     container_name: excel_parser_django
-    command: gunicorn excel_parser.wsgi:application --bind 0.0.0.0:8000
+    command: sh -c "python manage.py migrate && gunicorn excel_parser.wsgi:application --bind 0.0.0.0:8000"
     volumes:
       - .:/code
     depends_on:
