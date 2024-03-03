@@ -1,3 +1,7 @@
 from django.contrib import admin
+from .models import DeviceCategory, Brand, Series, DeviceModel
 
-# Register your models here.
+admin.site.register(DeviceCategory)
+admin.site.register(Brand)
+admin.site.register(Series)
+admin.site.register(DeviceModel)

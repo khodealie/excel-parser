@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.3.0
+    container_name: excel_parser_database
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_ROOT_PASSWORD}'
+      MYSQL_DATABASE: '${DB_NAME}'
+      MYSQL_USER: '${DB_USER}'
+      MYSQL_PASSWORD: '${DB_PASSWORD}'
+    networks:
+      - excel_parser_network
+
+  redis:
+    image: redis:latest
+    container_name: excel_parser_redis
+    networks:
+      - excel_parser_network
+
+  web:
+    build: .
+    container_name: excel_parser_django
+    command: >
+      sh -c "
+        while ! nc -z excel_parser_database 3306; do
+          echo 'Waiting for the database...'
+          sleep 1
+        done
+        echo 'Database is up!'
+        python manage.py collectstatic --no-input
+        python manage.py migrate
+        gunicorn excel_parser.wsgi:application --bind 0.0.0.0:8000
+      "
+    volumes:
+      - .:/code
+      - static_volume:/app/static
+    depends_on:
+      - db
+      - redis
+    networks:
+      - excel_parser_network
+    environment:
+      DB_ENGINE: '${DB_ENGINE}'
+      DB_NAME: '${DB_NAME}'
+      DB_USER: '${DB_USER}'
+      DB_PASSWORD: '${DB_PASSWORD}'
+      DB_HOST: '${DB_HOST}'
+      DB_PORT: '${DB_PORT}'
+      REDIS_HOST: '${REDIS_HOST}'
+      REDIS_PORT: '${REDIS_PORT}'
+      DEBUG: '${DEBUG}'
+
+  nginx:
+    image: nginx:1.19
+    container_name: excel_parser_nginx
+    volumes:
+      - ./config/nginx:/etc/nginx/conf.d:ro
+      - static_volume:/app/static
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+    networks:
+      - excel_parser_network
+
+networks:
+  excel_parser_network:
+
+volumes:
+  mysql_data:
+  redis_data:
+  static_volume:

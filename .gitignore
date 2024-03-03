@@ -101,6 +101,7 @@ celerybeat.pid
 .env
 .venv
 env/
+bin/
 venv/
 ENV/
 env.bak/
@@ -142,4 +143,4 @@ Thumbs.db
 
 # Temporary files
 *.tmp
-
+pyvenv.cfg
