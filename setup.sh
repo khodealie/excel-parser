@@ -22,4 +22,4 @@ REDIS_PORT=6379
 EOF
 
 # Run Docker Compose
-docker-compose up -d
+docker compose up -d
