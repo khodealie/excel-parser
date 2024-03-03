@@ -5,6 +5,7 @@ django-redis==5.4.0
 djangorestframework==3.14.0
 drf-yasg==1.21.7
 et-xmlfile==1.1.0
+gunicorn==21.2.0
 inflection==0.5.1
 mysqlclient==2.2.4
 numpy==1.26.4

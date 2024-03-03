@@ -1,5 +1,5 @@
 # Use an official lightweight Python image as a parent image
-FROM python:3.9-slim
+FROM python:3.10-slim
 
 # Set environment variables to minimize Python bytecode generation and buffer logging
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -10,7 +10,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc libpq-dev \
+    && apt-get install -y --no-install-recommends gcc libpq-dev default-libmysqlclient-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip and install the requirements
