@@ -49,6 +49,7 @@ services:
       DB_PORT: '${DB_PORT}'
       REDIS_HOST: '${REDIS_HOST}'
       REDIS_PORT: '${REDIS_PORT}'
+      DEBUG: '${DEBUG}'
 
   nginx:
     image: nginx:1.19

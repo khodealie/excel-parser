@@ -19,6 +19,7 @@ DB_HOST=excel_parser_database
 DB_PORT=3306
 REDIS_HOST=excel_parser_redis
 REDIS_PORT=6379
+DEBUG=False
 EOF
 
 # Run Docker Compose
