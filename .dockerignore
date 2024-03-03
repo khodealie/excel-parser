@@ -16,6 +16,4 @@ requirements/
 tests/
 **/.env
 **/db.sqlite3
-**/static
-**/media
 docker-compose.yml
